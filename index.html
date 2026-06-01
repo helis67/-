@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>KorvalolTeam — ваша музыка на YouTube</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: radial-gradient(circle at 10% 20%, #0a0a1a, #03000c);
+            font-family: 'Segoe UI', 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+            color: #f0eaff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* СТЕКЛЯННЫЙ БУРГЕР (3 полоски, без фона) */
+        .menu-toggle {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 1000;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        .menu-toggle span {
+            display: block;
+            width: 30px;
+            height: 2px;
+            background: rgba(245, 230, 255, 0.85);
+            border-radius: 2px;
+            transition: 0.2s;
+            box-shadow: 0 0 3px rgba(180, 130, 255, 0.5);
+        }
+
+        .menu-toggle:hover span {
+            background: #e5cdff;
+            box-shadow: 0 0 6px #b77eff;
+        }
+
+        .nav-overlay {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 280px;
+            height: 100vh;
+            background: rgba(10, 5, 25, 0.96);
+            backdrop-filter: blur(24px);
+            z-index: 999;
+            transition: right 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            box-shadow: -6px 0 28px rgba(0, 0, 0, 0.7);
+            border-left: 1px solid #9f4dff;
+            display: flex;
+            flex-direction: column;
+            padding-top: 100px;
+            gap: 32px;
+            align-items: center;
+        }
+
+        .nav-overlay a {
+            color: #e5d9ff;
+            text-decoration: none;
+            font-size: 1.6rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            transition: 0.2s;
+            cursor: pointer;
+        }
+
+        .nav-overlay a:hover {
+            color: #c77dff;
+            text-shadow: 0 0 6px #b77eff;
+            transform: scale(1.02);
+        }
+
+        .nav-overlay.show {
+            right: 0;
+        }
+
+        .close-menu-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            z-index: 998;
+            backdrop-filter: blur(2px);
+            display: none;
+        }
+
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .animated-title {
+            font-size: clamp(2.4rem, 9vw, 4.5rem);
+            font-weight: 800;
+            background: linear-gradient(125deg, #cd9fff, #9b4dff, #c084fc);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            opacity: 0;
+            transform: translateY(48px);
+            animation: riseGlow 0.9s forwards ease-out;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 15px rgba(157, 78, 221, 0.5);
+            margin-bottom: 20px;
+        }
+
+        .about-section {
+            background: #0d071aee;
+            backdrop-filter: blur(2px);
+            margin: 20px 20px 60px 20px;
+            border-radius: 48px;
+            padding: 3rem 2rem;
+            text-align: center;
+            border: 1px solid #5a2a9e;
+            box-shadow: 0 20px 35px -12px black;
+            opacity: 0;
+            transform: translateY(45px);
+            transition: opacity 0.8s ease-out, transform 0.7s ease-out;
+        }
+
+        .about-section.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .about-section h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #e2b0ff, #b163ff);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .offer-card {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: #1b112f;
+            padding: 24px 20px;
+            border-radius: 32px;
+            width: 240px;
+            transition: 0.2s;
+            border-bottom: 3px solid #9a4dff;
+        }
+
+        .card svg {
+            width: 48px;
+            height: 48px;
+            stroke: #b580ff;
+            fill: none;
+            stroke-width: 1.8;
+        }
+
+        .card h3 {
+            margin: 15px 0 10px;
+        }
+
+        /* Футер */
+        .footer-leb {
+            text-align: center;
+            padding: 30px 20px 10px;
+            font-size: 0.75rem;
+            letter-spacing: 0.3px;
+            color: #6a5290;
+        }
+        .footer-leb .small-team {
+            font-size: 0.7rem;
+            margin-top: 8px;
+            color: #7d60a5;
+        }
+        .footer-leb .smifi {
+            margin-top: 4px;
+            font-size: 0.7rem;
+            color: #8a6ac0;
+        }
+
+        /* Юридические блоки */
+        .legal-disclaimer,
+        .copyright-disclaimer {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px 20px 15px;
+            font-size: 0.7rem;
+            line-height: 1.4;
+            color: #4a3a6a;
+            text-align: justify;
+            border-top: 1px solid rgba(100, 70, 140, 0.2);
+        }
+
+        .legal-disclaimer p,
+        .copyright-disclaimer p {
+            margin-bottom: 8px;
+        }
+
+        @keyframes riseGlow {
+            0% {
+                opacity: 0;
+                transform: translateY(48px);
+                filter: blur(8px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+                filter: blur(0);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .menu-toggle {
+                top: 16px;
+                right: 16px;
+                width: 44px;
+                height: 44px;
+            }
+            .menu-toggle span {
+                width: 26px;
+                height: 2px;
+            }
+            .card {
+                width: 100%;
+                max-width: 260px;
+            }
+            .legal-disclaimer,
+            .copyright-disclaimer {
+                font-size: 0.6rem;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="menu-toggle" id="burgerBtn">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
+
+    <div class="nav-overlay" id="navMenu">
+        <a href="#" class="nav-link" data-section="main">Главная</a>
+        <a href="#" class="nav-link" data-section="contact">Связаться</a>
+    </div>
+    <div class="close-menu-bg" id="closeBg"></div>
+
+    <main>
+        <div class="hero" id="homeSection">
+            <div class="animated-title">KorvalolTeam</div>
+        </div>
+
+        <div class="about-section" id="aboutSection">
+            <h2>🎧 Что мы делаем?</h2>
+            <p style="max-width: 700px; margin: 0 auto; font-size: 1.15rem;">
+                🔥 <strong>Бесплатно выкладываем ВАШУ музыку на YouTube</strong> 🔥
+            </p>
+            <div class="offer-card">
+                <div class="card">
+                    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.33 29 29 0 0 0-.46-5.33z" />
+                        <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" />
+                    </svg>
+                    <h3>YouTube продвижение</h3>
+                    <p>Разместим трек / клип на канале — честно, без подписок</p>
+                </div>
+                <div class="card">
+                    <svg viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" />
+                        <path d="M12 6v6l4 2" />
+                    </svg>
+                    <h3>Ваша музыка — в топ</h3>
+                    <p>Помогаем начинающим артистам. Абсолютно 0₽</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-leb">
+            <span>✶</span> сделано благодаря <strong>смифи</strong> <span>✶</span>
+            <div class="small-team">KorvalolTeam</div>
+            <div class="smifi">SmifiTeam</div>
+        </div>
+
+        <!-- ПЕРВЫЙ ДИСКЛЕЙМЕР (информационный посредник) -->
+        <div class="legal-disclaimer">
+            <p>Внимание: Настоящим уведомляем, что в соответствии с положениями части 4 Гражданского кодекса РФ (раздел VII «Права на результаты интеллектуальной деятельности и средства индивидуализации»), а также международными нормами в сфере авторского права (включая Бернскую конвенцию), все исключительные и личные неимущественные права на использованные музыкальные произведения принадлежат их законным правообладателям.</p>
+            <p>Администрация канала не осуществляет коммерческое использование аудиоматериалов и не претендует на авторство. Мы выступаем исключительно в роли информационного посредника. Всю полноту ответственности за правомерность создания и обнародования фонограммы несет непосредственно автор (композитор/исполнитель), чье имя указано в описании видео.</p>
+            <p>В случае возникновения споров, предусмотренных ст. 1252, 1301 ГК РФ, просьба связываться с автором композиции для урегулирования претензий в досудебном порядке.</p>
+        </div>
+
+        <!-- ВТОРОЙ ДИСКЛЕЙМЕР (авторские права + название команды) -->
+        <div class="copyright-disclaimer">
+            <p>Авторские права и ответственность. Все музыкальные произведения, использованные в данном видео, являются оригинальными (созданы специально для канала) и охраняются в соответствии с частью 4 Гражданского кодекса РФ (ст. 1255–1302). Исключительные права на них принадлежат непосредственно автору (композитору), чьё имя указано в титрах/описании. Администрация канала не участвует в создании фонограмм, не претендует на соавторство и не несёт ответственности за содержание музыкального материала — в том числе за любые возможные претензии третьих лиц о нарушении исключительных прав или смежных прав, предусмотренные ст. 1301, 1311 ГК РФ. Все риски, связанные с публикацией трека, полностью лежат на его авторе.</p>
+            <p>О названии «Korvalol Team». Наименование сообщества не является пропагандой наркотических средств, психотропных веществ или их прекурсоров в понимании Федерального закона № 3-ФЗ и ст. 6.13 КоАП РФ. Оно не содержит призывов к потреблению, не рекламирует запрещённые вещества и не направлено на вовлечение в противоправное поведение. Любая иная интерпретация есть домысел третьих лиц.</p>
+        </div>
+    </main>
+
+    <script>
+        const burger = document.getElementById('burgerBtn');
+        const navMenu = document.getElementById('navMenu');
+        const closeBg = document.getElementById('closeBg');
+
+        function openMenu() {
+            navMenu.classList.add('show');
+            closeBg.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMenu() {
+            navMenu.classList.remove('show');
+            closeBg.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+        burger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (navMenu.classList.contains('show')) closeMenu();
+            else openMenu();
+        });
+        closeBg.addEventListener('click', closeMenu);
+
+        const navLinks = document.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const section = link.getAttribute('data-section');
+                if (section === 'main') {
+                    document.getElementById('homeSection').scrollIntoView({ behavior: 'smooth' });
+                } else if (section === 'contact') {
+                    window.open('https://t.me/smifi1', '_blank');
+                }
+                closeMenu();
+            });
+        });
+
+        const aboutBlock = document.getElementById('aboutSection');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    aboutBlock.classList.add('visible');
+                    observer.unobserve(aboutBlock);
+                }
+            });
+        }, { threshold: 0.2 });
+        observer.observe(aboutBlock);
+
+        window.addEventListener('load', () => {
+            if (aboutBlock.getBoundingClientRect().top < window.innerHeight - 100) {
+                aboutBlock.classList.add('visible');
+            }
+        });
+    </script>
+</body>
+</html>
