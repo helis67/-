@@ -1,135 +1,244 @@
 import asyncio
 import os
+import aiosqlite
 
 from aiogram import Bot, Dispatcher, F
-from aiogram.enums import ChatType
 from aiogram.filters import Command
 from aiogram.types import (
 Message,
-CallbackQuery,
 InlineKeyboardMarkup,
 InlineKeyboardButton,
+CallbackQuery
 )
 from dotenv import load_dotenv
 
 load_dotenv()
 
 TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
 
 bot = Bot(TOKEN)
 dp = Dispatcher()
 
-MIN_PLAYERS = 6
-WAIT_TIME = 30
+DB_NAME = "mafia.db"
 
-lobbies = {}
+# ---------------- DATABASE ----------------
+
+async def create_db():
+async with aiosqlite.connect(DB_NAME) as db:
+await db.execute("""
+CREATE TABLE IF NOT EXISTS users(
+telegram_id INTEGER PRIMARY KEY,
+username TEXT,
+diamonds INTEGER DEFAULT 0,
+games INTEGER DEFAULT 0,
+wins INTEGER DEFAULT 0,
+vip INTEGER DEFAULT 0
+)
+""")
+await db.commit()
+
+async def add_user(user_id, username):
+async with aiosqlite.connect(DB_NAME) as db:
+await db.execute(
+"""
+INSERT OR IGNORE INTO users
+(telegram_id, username)
+VALUES (?, ?)
+""",
+(user_id, username)
+)
+await db.commit()
+
+async def get_user(user_id):
+async with aiosqlite.connect(DB_NAME) as db:
+cursor = await db.execute(
+"""
+SELECT *
+FROM users
+WHERE telegram_id = ?
+""",
+(user_id,)
+)
+
+```
+    return await cursor.fetchone()
+```
+
+async def add_diamonds(user_id, amount):
+async with aiosqlite.connect(DB_NAME) as db:
+await db.execute(
+"""
+UPDATE users
+SET diamonds = diamonds + ?
+WHERE telegram_id = ?
+""",
+(amount, user_id)
+)
+await db.commit()
+
+async def remove_diamonds(user_id, amount):
+async with aiosqlite.connect(DB_NAME) as db:
+await db.execute(
+"""
+UPDATE users
+SET diamonds = diamonds - ?
+WHERE telegram_id = ?
+""",
+(amount, user_id)
+)
+await db.commit()
+
+async def activate_vip(user_id):
+async with aiosqlite.connect(DB_NAME) as db:
+await db.execute(
+"""
+UPDATE users
+SET vip = 1
+WHERE telegram_id = ?
+""",
+(user_id,)
+)
+await db.commit()
+
+# ---------------- START ----------------
 
 @dp.message(Command("start"))
 async def start_cmd(message: Message):
-await message.answer(
-"Привет! Чтобы играть в мафию, сначала напиши боту /start, затем заходи в группу."
-)
-
-@dp.message(Command("mafia"))
-async def create_game(message: Message):
-if message.chat.type == ChatType.PRIVATE:
-return
+username = message.from_user.username
 
 ```
-chat_id = message.chat.id
+if username:
+    username = f"@{username}"
+else:
+    username = message.from_user.full_name
 
-if chat_id in lobbies:
-    await message.answer("Игра уже создается.")
-    return
-
-lobbies[chat_id] = {
-    "players": {},
-    "started": False
-}
-
-kb = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text="➕ Присоединиться",
-                callback_data=f"join:{chat_id}"
-            )
-        ]
-    ]
+await add_user(
+    message.from_user.id,
+    username
 )
 
 await message.answer(
-    f"🎭 Лобби создано\n\n"
-    f"Минимум игроков: {MIN_PLAYERS}\n"
-    f"Старт через: {WAIT_TIME} сек",
+    "🎭 Добро пожаловать в Mafia Bot\n\n"
+    "/profile - профиль\n"
+    "/shop - магазин"
+)
+```
+
+# ---------------- PROFILE ----------------
+
+@dp.message(Command("profile"))
+async def profile(message: Message):
+user = await get_user(
+message.from_user.id
+)
+
+```
+if not user:
+    return
+
+vip = "👑 Да" if user[5] else "❌ Нет"
+
+await message.answer(
+    f"👤 {user[1]}\n\n"
+    f"💎 Алмазы: {user[2]}\n"
+    f"🎮 Игр: {user[3]}\n"
+    f"🏆 Побед: {user[4]}\n"
+    f"{vip}"
+)
+```
+
+# ---------------- SHOP ----------------
+
+@dp.message(Command("shop"))
+async def shop(message: Message):
+kb = InlineKeyboardMarkup(
+inline_keyboard=[
+[
+InlineKeyboardButton(
+text="👑 VIP - 500💎",
+callback_data="buy_vip"
+)
+]
+]
+)
+
+```
+await message.answer(
+    "🛒 Магазин",
     reply_markup=kb
 )
-
-asyncio.create_task(start_timer(chat_id))
 ```
 
-async def start_timer(chat_id):
-await asyncio.sleep(WAIT_TIME)
+@dp.callback_query(F.data == "buy_vip")
+async def buy_vip(callback: CallbackQuery):
+user = await get_user(
+callback.from_user.id
+)
 
 ```
-if chat_id not in lobbies:
-    return
+diamonds = user[2]
 
-players = lobbies[chat_id]["players"]
-
-if len(players) < MIN_PLAYERS:
-    await bot.send_message(
-        chat_id,
-        f"❌ Недостаточно игроков.\n"
-        f"Нужно минимум {MIN_PLAYERS}.\n"
-        f"Сейчас: {len(players)}"
+if diamonds < 500:
+    await callback.answer(
+        "Недостаточно алмазов",
+        show_alert=True
     )
-    del lobbies[chat_id]
     return
 
-await bot.send_message(
-    chat_id,
-    f"🎭 Игра началась!\n"
-    f"Игроков: {len(players)}"
+await remove_diamonds(
+    callback.from_user.id,
+    500
 )
 
-roles = ["Мафия", "Доктор", "Комиссар"]
-while len(roles) < len(players):
-    roles.append("Мирный")
+await activate_vip(
+    callback.from_user.id
+)
 
-import random
-random.shuffle(roles)
+await callback.message.answer(
+    "👑 VIP успешно куплен"
+)
 
-for (user_id, username), role in zip(players.items(), roles):
-    try:
-        await bot.send_message(
-            user_id,
-            f"Ваша роль: {role}"
-        )
-    except:
-        pass
+await callback.answer()
 ```
 
-@dp.callback_query(F.data.startswith("join:"))
-async def join_game(callback: CallbackQuery):
-chat_id = int(callback.data.split(":")[1])
+# ---------------- ADMIN ----------------
+
+@dp.message(Command("give"))
+async def give(message: Message):
+username = message.from_user.username
 
 ```
-if chat_id not in lobbies:
-    await callback.answer("Лобби не найдено")
+if username != ADMIN_USERNAME:
     return
 
-user = callback.from_user
+args = message.text.split()
 
-lobbies[chat_id]["players"][user.id] = (
-    user.username or user.full_name
+if len(args) != 3:
+    await message.answer(
+        "/give ID АЛМАЗЫ"
+    )
+    return
+
+user_id = int(args[1])
+amount = int(args[2])
+
+await add_diamonds(
+    user_id,
+    amount
 )
 
-await callback.answer("Вы присоединились")
+await message.answer(
+    "Готово"
+)
 ```
+
+# ---------------- RUN ----------------
 
 async def main():
+await create_db()
 await dp.start_polling(bot)
 
 if **name** == "**main**":
 asyncio.run(main())
+
